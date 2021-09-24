@@ -1,6 +1,7 @@
 #include<stdio.h>
 #include<string.h>
-#include<stdlib.h> 
+#include<stdlib.h>
+#include<io.h> 
 //使用结构体表示每个字母出现的次数 
 typedef struct{
 	char letter;	//字母 
@@ -17,6 +18,14 @@ typedef struct words{
 }word[1000];
 int wordNums=0;	//文本中出现的单词总数 
 
+//查找目录下的文件所做的前置准备
+#define ADDR "D:\\Git\\workspaces\\Project1\\personalWF\\*.*"
+const char *SearchAddr=ADDR; 
+struct fileLists{
+	char fileName[60];	//文件名 
+};
+int totalfileNum=0;	//总文件数 
+fileLists filelist[100];
 //初始化结构体 alphabet 
 void initAlphabet(){
 	int i;
@@ -41,6 +50,7 @@ void printAlphabetRate(){
 		printf("file can not open\n");
 		return;
 	}
+	printf("text.txt\n");
 	initAlphabet();
 	//从文件中读取字符进行比对、统计
 	char l;
@@ -239,6 +249,7 @@ void printFrequentWord(int n){
 		printf("file can not open\n");
 		return;
 	}
+	printf("text.txt\n");
 	//统计单词数量
 	words word[1000];
 	while((ch=fgetc(fp))!=EOF){
@@ -288,8 +299,8 @@ void printFrequentWord(int n){
 	}
 	//排序
 	words temp;
-	for(i=0;i<26;i++){
-		for(j=0;j<26-i;j++){
+	for(i=0;i<wordNums;i++){
+		for(j=0;j<wordNums-i;j++){
 			if(word[j].num<word[j+1].num){
 				temp=word[j];
 				word[j]=word[j+1];
@@ -331,6 +342,41 @@ void printFrequentWord(int n){
 	return;
 }
 
+void statisticWords(char fileName[60]);
+// -d 指定文件夹目录，对目录下每一个 (txt) 文件执行 WF -f 操作
+void  getFileList(){
+	int i=0;
+	long long Handle;
+	struct _finddata_t FileInfo;
+	Handle=_findfirst(SearchAddr,&FileInfo);
+	if(-1==Handle){
+		return;
+	}
+	printf("当前文件夹下的文件或目录\n");
+	printf("%s\n",FileInfo.name);	//打印当前文件夹，即 . 
+	strcpy(filelist[i].fileName,FileInfo.name);
+	i++;
+	totalfileNum++;
+	while(!_findnext(Handle,&FileInfo)){	//将文件名存进filelist[100] 
+		printf("%s\n",FileInfo.name);
+		strcpy(filelist[i].fileName,FileInfo.name);
+		i++;
+		totalfileNum++;
+	}
+	printf("总文件（夹）数：%d\n",totalfileNum);
+	printf("----------------------------------------------\n");
+	_findclose(Handle);
+	//对 .txt 文本进行 -f 操作
+	for(i=0;i<totalfileNum;i++){
+		if(strstr(filelist[i].fileName,".txt") && (strcmp(filelist[i].fileName,"text.txt")!=0)){
+			printf("%s\n",filelist[i].fileName);
+			statisticWords(filelist[i].fileName);
+		}
+	}
+	//printf("----------------------------------------------\n");
+	return;
+}
+
 int main(int argc,char *argv[]){
 	int n=10;
 	char *input1,*input2;
@@ -348,5 +394,99 @@ int main(int argc,char *argv[]){
 		}
 		//printFrequentWord(n);
 	}
+	getFileList();
 	return 0;
+}
+void statisticWords(char fileName[60]){
+	FILE *fp;
+	char w[60],ch;	//w[60]表示临时存放单词,ch表示从文本中获取的字母 
+	int i=0,j=0,flag=0,m=1,k=0;	//flag表示1个单词是否已放入w[60];m表示是否有单词相同 
+	int totalword=0;
+	//检查文件是否为空 
+	if((fp=fopen(fileName,"r"))==NULL){
+		printf("file can not open\n");
+		return;
+	}
+	//统计单词数量
+	struct wordInfile{
+		int numInfile;
+		char wordNameInfile[60];
+	};
+	wordInfile wordinfile[1000];
+	while((ch=fgetc(fp))!=EOF){
+		//大写字母转小写字母
+		if(ch>='A'&&ch<='Z'){
+			ch=ch+32;
+		} 
+		if(ch>='a'&&ch<='z'){
+			w[i]=ch; //开始存入单词到临时表 
+			i++;
+			flag=1;
+		}
+		else{
+			if(ch=='-'&&(ch=fgetc(fp))=='\n'){	//非字母，非空格 
+				flag=0;
+			}
+			else{
+				if(flag==1){
+					//写入w完成+'\0' 
+					w[i]='\0';
+					i=0;
+					flag=0;
+					m=0;
+					for(j=0;j<k;j++){
+						if(strcmp(w,wordinfile[j].wordNameInfile)==0){
+							m=1;	//表示前面有单词相同 
+							break;
+						}
+					}
+					if(m){
+						wordinfile[j].numInfile++;	//单词数量加1 
+					}
+					else{	//存入结构体word表 
+						wordinfile[k].numInfile=1;
+						strcpy(wordinfile[k].wordNameInfile,w);
+						k++;
+					}
+				}
+			}
+		}
+	}
+	int l=0,n1=0;
+	//统计文本中出现的单词总数
+	while(wordinfile[l].numInfile){
+		totalword++;
+		l++;
+	}
+	//排序
+	wordInfile temp;
+	for(i=0;i<totalword;i++){
+		for(j=0;j<totalword-i;j++){
+			if(wordinfile[j].numInfile<wordinfile[j+1].numInfile){
+				temp=wordinfile[j];
+				wordinfile[j]=wordinfile[j+1];
+				wordinfile[j+1]=temp;
+			}
+		}
+	}
+	//测试 & 输出
+	l=0;
+	//printf("出现次数    单词\n");
+	//printf("%s\n",fileName);
+		printf("出现次数    单词\n");
+		while(l<totalword){
+		//while(wordinfile[l].numInfile){
+			printf("  %d         ",wordinfile[l].numInfile);
+			while(wordinfile[l].wordNameInfile[n1]){
+				printf("%c",wordinfile[l].wordNameInfile[n1]);
+				n1++;
+			}
+			l++;
+			n1=0;
+			printf("\n");
+		}
+	printf("总的单词数：%d\n",totalword);
+	printf("----------------------------------------------\n");
+	memset(wordinfile,'\0',1000);
+	return;
 }
